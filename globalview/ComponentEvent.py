@@ -36,31 +36,6 @@ class EventType(Enum):
     REMOVED = 'remove'  # Signifies that a component is removed from plant permanently
 
     RECOVER = 'recover' # Signifies that a component is recovered from error
-    
-    LOADING = 'loading' # Signifies that a component is loading a part
-
-    UNLOADING = 'unloading' # Signifies that a component is unloading a part
-
-    CYCLING = 'cycling' # Signifies that component is working on a part
-    
-    BLOCKED = 'blocked' # Signifies that a component must stop because there is no space to deposit the item
-    #heartbeat > 0 
-    
-    WAITING = 'waiting'	# Signifies that a component cannot start work because additional conditions must be fulfilled
-    #heartbeat > 0, MTTR reached, processingtime = 0
-    
-    SETUP = 'setup' # Signifies that a component is being setup
-    #heartbeat = 0
-    
-    EMERGENCY STOP = 'emergency_stop' # Signifies that a component aborts operation and is placed into safe condition 
-    #heartbeat = 0
-    
-    REPAIR = 'repair' # Signifies that a component has an intervention 
-    #heartbeat = 0, MTBF is reached
-
-    SHUTDOWN = 'shutdown' # Signifies that a component manually goes into shutdown state
-    #heartbeat = 0,
-
 
 
 class CncEvent(AbstractEvent):

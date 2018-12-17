@@ -13,6 +13,7 @@ from ComponentEvent import EventType, CncEvent
 from Device import Stopper, Robot
 from link import Host_to_Device_Connection
 import logging
+import numpy as np
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -97,13 +98,13 @@ def remove_links(ssid):
 def draw_figure(pos):
     for i in range(0, Node_count):
         if (Net_Nodes[i][0] == 'H' or Net_Nodes[i][0] == 'h' or Net_Nodes[i][0] == 'C' or Net_Nodes[i][0] == 'c'):
-            nx.draw_networkx_nodes(G, pos, nodelist=[Net_Nodes[i]], node_size=500, node_color='r', node_shape='s')
+            nx.draw_networkx_nodes(G, pos, nodelist=[Net_Nodes[i]], node_size=1000, node_color='r', node_shape='s')
 
         if (Net_Nodes[i][0] == 'S' or Net_Nodes[i][0] == 's'):
             nx.draw_networkx_nodes(G, pos, node_size=500, nodelist=[Net_Nodes[i]], node_color='b')
 
         if (Net_Nodes[i][0] == 'R' or Net_Nodes[i][0] == 'r'):
-            nx.draw_networkx_nodes(G, pos, node_size=500, nodelist=[Net_Nodes[i]], node_color='g')
+            nx.draw_networkx_nodes(G, pos, node_size=200, nodelist=[Net_Nodes[i]], node_color='g')
     nx.draw_networkx_edges(G, pos)
     nx.draw_networkx_labels(G, pos)
     plt.show()
@@ -196,41 +197,118 @@ if (__name__ == '__main__'):
     pos = nx.spring_layout(G)
     draw_figure(pos)
     # app = Viewer(G) for gui
+    time.sleep(2)
+    A=np.matrix([[0, 1, 0, 0, 0, 0, 0, 1, 0],
+                 [0, 0, 1, 0, 0, 0, 0, 1, 0],
+                 [0, 0, 0, 1, 0, 0, 0, 1, 0],
+                 [0, 0, 0, 0, 1, 0, 0, 1, 0],
+                 [0, 0, 0, 0, 0, 0, 0, 1, 0],
+                 [1, 0, 0, 0, 0, 0, 0, 1, 0],
+                 [0, 0, 0, 0, 0, 1, 0, 1, 0],
+                 [0, 0, 0, 0, 0, 1, 0, 1, 0],
+                 [1, 0, 0, 0, 0, 0, 0, 1, 0]])
+    mapping={0: 'Idle', 1: 'Loading', 2: 'Cycling', 3: 'Unloading', 4: 'Blocked', 5: 'Repair', 6: 'Emergency stop',
+             7: 'Shut down', 8: 'Setup'}
 
-    # Instance devices and host
-    post = host_collection.find()
-    for i in range(0, post.count()):
-        if (post[i]["hosttype"] == "cnc"):
-            hostlocation = []
-            for j in range(0, len(connectdict[post[i]["ssid"]])):
-                Host_to_Device_Connection(post[i]["ssid"], connectdict[post[i]["ssid"]][j])
-                hostlocation.append(Host_to_Device_Connection)
+    G1=nx.from_numpy_matrix(A, create_using=nx.DiGraph())
+    G1=nx.relabel_nodes(G1, mapping)
+    G1.add_edges_from([("Idle", "Loading"), ("Loading", "Cycling"), ("Cycling", "Unloading"), ("Cycling", "Repair"),
+                      ("Unloading", "Blocked"), ("Blocked", "Idle"), ("Idle", "Setup"), ("Repair", "Idle"),
+                      ("Shut down", "Repair"),
+                      ("Loading", "Emergency stop"), ("Cycling", "Emergency stop"), ("Unloading", "Emergency stop"),
+                      ("Blocked", "Emergency stop"), ("Idle", "Emergency stop"), ("Repair", "Emergency stop"),
+                      ("Setup", "Emergency stop"),
+                      ("Loading", "Shut down"), ("Cycling", "Shut down"), ("Unloading", "Shut down")])
+    pos1=nx.circular_layout(G1)
+    plt.figure(3, figsize=(23, 8))
+    nx.draw(G1, pos1, edge_color='black', width=1, linewidths=1, \
+            node_size=500, node_color='yellow', alpha=0.9, \
+            labels={node: node for node in G1.nodes()})
+    nx.draw_networkx_edge_labels(G1, pos1, edge_labels={("Idle", "Loading"): 'part detected at conveyer', \
+                                                      ("Loading", "Cycling"): 'part inside CNC',
+                                                      ("Cycling", "Unloading"): 'cycle time',
+                                                      ("Cycling", "Repair"): 'open CNC door', \
+                                                      ("Unloading", "Blocked"): 'unloading time',
+                                                      ("Blocked", "Idle"): 'part picked up from CNC',
+                                                      ("Idle", "Setup"): 'tool change', \
+                                                      ("Repair", "Idle"): 'fault reset',
+                                                      ("Shut down", "Repair"): 'ON button',
+                                                      ("Loading", "Emergency stop"): 'emergency stop button', \
+                                                      ("Cycling", "Emergency stop"): 'emergency stop button',
+                                                      ("Unloading", "Emergency stop"): 'emergency stop button', \
+                                                      ("Blocked", "Emergency stop"): 'emergency stop button',
+                                                      ("Idle", "Emergency stop"): 'emergency stop button', \
+                                                      ("Repair", "Emergency stop"): 'emergency stop button',
+                                                      ("Setup", "Emergency stop"): 'emergency stop button', \
+                                                      ("Loading", "Shut down"): 'OFF button',
+                                                      ("Cycling", "Shut down"): 'OFF button',
+                                                      ("Unloading", "Shut down"): 'OFF button'}, font_color='red')
+    plt.show()
 
-            cnc = Cnc(post[i]["ssid"], post[i]["ipadd"], post[i]["macadd"], post[i]["program"], post[i]["heartbeat"],
-                      hostlocation, post[i]["drivelist"], post[i]["controlmode"])
-            cncdict.update({post[i]["ssid"]: cnc})
-            CncEvent(EventType('add'), cnc.get_hostid(), time.time())
+# Instance devices and host
+post = host_collection.find()
+for i in range(0, post.count()):
+    if (post[i]["hosttype"] == "cnc"):
+        hostlocation = []
+        for j in range(0, len(connectdict[post[i]["ssid"]])):
+            Host_to_Device_Connection(post[i]["ssid"], connectdict[post[i]["ssid"]][j])
+            hostlocation.append(Host_to_Device_Connection)
 
-    post = device_collection.find()
-    for i in range(0, post.count()):
-        if (post[i]["devicetype"] == "stopper"):
-            stopper = Stopper(post[i]["ssid"], post[i]["state"], post[i]["heartbeat"])
+        cnc = Cnc(post[i]["ssid"], post[i]["ipadd"], post[i]["macadd"], post[i]["program"], post[i]["heartbeat"],
+                  hostlocation, post[i]["drivelist"], post[i]["controlmode"])
+        cncdict.update({post[i]["ssid"]: cnc})
+        CncEvent(EventType('add'), cnc.get_hostid(), time.time())
 
-        if (post[i]["devicetype"] == "robot"):
-            robot = Robot(post[i]["ssid"], post[i]["state"], post[i]["heartbeat"], post[i]["program"])
+post = device_collection.find()
+for i in range(0, post.count()):
+    if (post[i]["devicetype"] == "stopper"):
+        stopper = Stopper(post[i]["ssid"], post[i]["state"], post[i]["heartbeat"])
 
-    # Update based on the input (listener should be added in the future)
-    time.sleep(5)
-    Node_count = updateorcreate_cnc(Node_count)
-    # app.canvas.refresh() for gui
-    draw_figure(pos)
+    if (post[i]["devicetype"] == "robot"):
+        robot = Robot(post[i]["ssid"], post[i]["state"], post[i]["heartbeat"], post[i]["program"])
 
-    # test of recovery
-    host_collection.update_one({"heartbeat": False},
-                               {"$set": {"heartbeat": True}})
-    print(cachedict)
-    print(Node_count)
-    time.sleep(5)
-    Node_count = updateorcreate_cnc(Node_count)
-    draw_figure(pos)
-    print(Node_count)
+# Update based on the input (listener should be added in the future)
+time.sleep(5)
+Node_count = updateorcreate_cnc(Node_count)
+# app.canvas.refresh() for gui
+draw_figure(pos)
+time.sleep(5)
+A1 = np.matrix([[0,1,0,0,0,0,0,0,0],
+               [0,0,1,0,0,0,0,0,0],
+               [0,0,0,1,0,0,0,0,0],
+               [0,0,0,0,1,0,0,0,0],
+               [0,0,0,0,0,0,0,0,0],
+               [1,0,0,0,0,0,0,0,0],
+               [0,0,0,0,0,1,0,0,0],
+               [0,0,0,0,0,0,0,0,0],
+               [1,0,0,0,0,0,0,0,0]])
+mapping = {0:'Idle',1:'Loading',2:'Cycling',3:'Unloading',4:'Blocked',5:'Repair',6:'Emergency stop' ,7:'Shut down', 8:'Setup'}
+
+G2 = nx.from_numpy_matrix(A1, create_using=nx.DiGraph())
+G2 = nx.relabel_nodes(G2,mapping)
+G2.add_edges_from([("Idle","Loading"),("Loading","Cycling"),("Cycling","Unloading"), ("Cycling","Repair"),
+("Unloading","Blocked"),("Blocked","Idle"),("Idle","Setup"),("Repair","Idle"),
+("Loading","Emergency stop"),("Cycling","Emergency stop"),("Unloading","Emergency stop"),
+("Blocked","Emergency stop"),("Idle","Emergency stop"),("Repair","Emergency stop"),("Setup","Emergency stop")])
+pos2 = nx.circular_layout(G2)
+plt.figure(3,figsize=(10,5))
+nx.draw(G2,pos2,edge_color='black',width=1,linewidths=1,\
+node_size=500,node_color='yellow',alpha=0.9,\
+labels={node:node for node in G2.nodes()})
+nx.draw_networkx_edge_labels(G2,pos2,edge_labels={("Idle","Loading"):'part detected at conveyer',\
+("Loading","Cycling"):'part inside CNC',("Cycling","Unloading"):'cycle time', ("Cycling","Repair"):'open CNC door',\
+("Unloading","Blocked"):'unloading time',("Blocked","Idle"):'part picked up from CNC',("Idle","Setup"):'tool change',\
+("Repair","Idle"):'fault reset',("Loading","Emergency stop"):'emergency stop button',\
+("Cycling","Emergency stop"):'emergency stop button',("Unloading","Emergency stop"):'emergency stop button',\
+("Blocked","Emergency stop"):'emergency stop button',("Idle","Emergency stop"):'emergency stop button',\
+("Repair","Emergency stop"):'emergency stop button',("Setup","Emergency stop"):'emergency stop button'},font_color='red')
+plt.show()
+# test of recovery
+host_collection.update_one({"heartbeat": False},
+                           {"$set": {"heartbeat": True}})
+print(cachedict)
+print(Node_count)
+time.sleep(5)
+Node_count = updateorcreate_cnc(Node_count)
+draw_figure(pos)
+print(Node_count)

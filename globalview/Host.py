@@ -1,6 +1,6 @@
 #  Describes end - station host, which is leaf node in the graph
 class Host(object):
-    def __init__(self,ssid,ipadd,macadd,program,heartbeat,hostlocation,hosttype,cyclingtime):
+    def __init__(self,ssid,ipadd,macadd,program,heartbeat,hostlocation,hosttype):
         self._hostType = hosttype
         self._hostId = ssid
         self._ipAdd = ipadd
@@ -8,7 +8,6 @@ class Host(object):
         self._program = program
         self._heartBeat = heartbeat
         self._HostLocation = hostlocation
-        self._cyclingTime = cyclingtime
 
     def get_hostid(self):
         return self._hostId
@@ -18,9 +17,6 @@ class Host(object):
 
     def get_heartbeat(self):
         return self._heartBeat
-        
-    def get_cyclingtime(self):
-        return self._cyclingTime
 
 
 class Drive(object):
@@ -29,8 +25,8 @@ class Drive(object):
 
 
 class Cnc(Host):
-    def __init__(self, ssid, ipadd, macadd, program, heartbeat, hostlocation, drivelist,controlmode, hosttype, cyclingtime = 'cnc'):
-        super(Cnc, self).__init__(ssid, ipadd, macadd, program, heartbeat, hostlocation, hosttype, cyclingtime)
+    def __init__(self, ssid, ipadd, macadd, program, heartbeat, hostlocation, drivelist,controlmode, hosttype = 'cnc'):
+        super(Cnc, self).__init__(ssid, ipadd, macadd, program, heartbeat, hostlocation, hosttype)
         self._driveList = drivelist
         self._controlMode = controlmode
 
@@ -57,9 +53,6 @@ class Cnc(Host):
 
     def set_drivelist(self,drivelist):
         self._driveList = drivelist
-    
-    def set_cyclingtime(self, cyclingtime)
-        self._cyclingTime = cyclingtime
 
 
 # drive1 = Drive('work')
